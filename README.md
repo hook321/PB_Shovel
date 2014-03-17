@@ -17,4 +17,4 @@ optional arguments:
 
 ## Installation
 ---
-Simply run ```pip -r requirements``` to install required modules and off you go
+Simply run ```pip install -r requirements``` to install required modules and off you go
