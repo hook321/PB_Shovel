@@ -1,3 +1,6 @@
+Usage
+=====
+
 ```
 usage: pb_shovel.py [-h] [-r] [-o OUTPUT_DIRECTORY]
                     (-f FILE | -u [URLS [URLS ...]])
@@ -24,4 +27,13 @@ Authentication:
                         with Photobucket.
   -p PASSWORD, --password PASSWORD
                         The matching password for your account.
+```
+
+Guest password
+=====================
+Got guest password protected albums which you want to download?
+simply pass the password with the URL you define with the
+-u/--urls argument like so:
+```
+python pb_shovel.py -u "password@http://photobucket.com/example"
 ```

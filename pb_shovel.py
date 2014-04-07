@@ -68,11 +68,13 @@ class Photobucket():
     def _get_password_from_url(self, url):
         """ Returns the password which is concatenated with the URL, as well as
             the actual URL. """
+        if "@http://" not in url:
+            return None, url
         password = url[:url.rindex("@http://")]
+        if not password:
+            return None, url
         up = urlparse(url[url.rindex("@http://")+1:])
         url = up.geturl()
-        if not url.strip() or not password.strip():
-            raise ValueError
         return password, url
 
     def _append_page_iter(self, link):
@@ -101,8 +103,6 @@ class Photobucket():
             while 1: # Iterate over each album page and extract all images
                 source = self._get_source("{0}{1}".format(link, i), True)
                 if not source:
-                    stderr.write("\nFailed to obtain images from {0}!\n".format(link))
-                    stderr.flush()
                     break
                 elif "End of album" in source:
                     break
@@ -153,13 +153,14 @@ class Photobucket():
         for link in self._load_links():
             if not link or "photobucket.com" not in link:
                 continue
-            stderr.write("Processing: {0}\n".format(link))
-            stderr.flush()
-            # Obtain the source code of the current link
+            password, link = self._get_password_from_url(link)
             source = self._get_source(link)
             if not source:
+                stderr.write("Couldn't connect to {0}\n".format(link))
+                stderr.flush()
                 continue
-
+            stderr.write("\nProcessing: {0}\n".format(link))
+            stderr.flush()
             try:
                 # Determine which extraction method to use for the current link
                 extraction_type = self._get_extraction_type(link, source)
@@ -212,22 +213,24 @@ class Photobucket():
             extraction_type = "Bucket"
         elif "/library/" in up.path and not up.path.endswith("/library/"):
             extraction_type = "Album"
+        elif "/images/" in up.path or "/videos/" in up.path:
+            extraction_type = "Album"
         elif "/media/" in up.path:
             extraction_type = "Image"
         elif "@http://" in up.path:
-            # password@http://photobucket.com/images/xyz
             extraction_type = "Gpwd album"
 
         if extraction_type == "Not supported":
             if "<h2>All Categories</h2>" in source:
                 extraction_type = "Album"
 
+        if self._is_guest_password_protected(source):
+            extraction_type = "Gpwd album"
+
         if extraction_type == "Album" and source:
             # Check if the album requires a guest password
-            if self._is_guest_password_protected(source):
-                extraction_type = "Gpwd album"
             # Check if the album is private
-            elif self._is_private_album(source):
+            if self._is_private_album(source):
                 extraction_type = "Not supported"
         return extraction_type
 
@@ -305,6 +308,7 @@ class Photobucket():
 
     def download_all_images(self):
         """ Downlods all collected images. """
+        self._log_download_status()
         for file_obj in self.collected_links:
             try:
                 self.download_image(file_obj)
@@ -318,8 +322,8 @@ class Photobucket():
     def _log_download_status(self):
         """ Prints the number of downloaded images and the total of images collected
             to stderr. """
-        stderr.write("\rDownloaded images: {0}/{1}".format(self._downloaded_images,
-                                                           len(self.collected_links)))
+        stderr.write("\rDownloaded files: {0}/{1}".format(self._downloaded_images,
+                                                          len(self.collected_links)))
         stderr.flush()
 
     def _configure_session(self):
@@ -340,12 +344,12 @@ class Photobucket():
     def _get_source(self, url, check_for_eof=False):
         """ Returns the passed url's source code. """
         try: # Make the request with the passed url
-            req = self._session.get(url)
+            req = self._session.get(url, timeout=10)
             if req.status_code != requests.codes.ok:
                 raise requests.exceptions.RequestException
             if check_for_eof and "page=" not in req.url:
                 raise EOFError
-        except(requests.exceptions.RequestException):
+        except(requests.exceptions.RequestException) as e:
             return
         except(EOFError):
             return "End of album"
@@ -432,7 +436,7 @@ class Photobucket():
         try:
             # Obtain the album image objects from the json data which is found
             # in the passed source
-            if "<h2>All Categories</h2>" in source:
+            if "<h2>All Categories</h2>" in source or "<a id=\"images\"" in source:
                 j = self._get_var_collectionData(source, "search")
             else:
                 j = self._get_var_collectionData(source)
