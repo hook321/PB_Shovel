@@ -32,7 +32,7 @@ class ImageInfo(object):
     def __init__(self, filename, **kwargs):
         self.filename = filename
         self.title = kwargs.get("title")
-        self.link = kwargs.get("fullsizeUrl")
+        self.link = kwargs.get("originalUrl")
         self.mediaType = kwargs.get("mediaType")
         self.likeCount = kwargs.get("likeCount")
         self.commentCount = kwargs.get("commentCount")
@@ -281,7 +281,7 @@ class Photobucket():
 
         # Fetch the url stored inside the fileinfo object and write the fetched
         # data into a file with the filename which is also stored inside the object.
-        with open(out, "wb") as f:
+        with open(out.replace("~original", ""), "wb") as f:
             req = requests.get(file_info.link, stream=True)
             if req.status_code != requests.codes.ok:
                 return
@@ -344,7 +344,7 @@ class Photobucket():
     def _get_source(self, url, check_for_eof=False):
         """ Returns the passed url's source code. """
         try: # Make the request with the passed url
-            req = self._session.get(url, timeout=10)
+            req = self._session.get(url, timeout=20)
             if req.status_code != requests.codes.ok:
                 raise requests.exceptions.RequestException
             if check_for_eof and "page=" not in req.url:
@@ -452,6 +452,14 @@ class Photobucket():
         if(j["pageNumber"] == 1):
             self._print_album_stats(source)
             stderr.flush()
+        image_objects = []
+        for obj in images:
+            new_link = obj.get("fullsizeUrl")
+            up = urlparse(new_link)
+            new_link = "{0}://{1}{2}{3}".format(up.scheme, up.netloc, up.path, "~original")
+            obj["originalUrl"] = new_link
+            image_objects.append(ImageInfo(obj["name"], **obj))
+
         image_objects = [ImageInfo(obj["name"], **obj) for obj in images if obj]
         return image_objects
 
