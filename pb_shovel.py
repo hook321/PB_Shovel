@@ -32,7 +32,7 @@ class ImageInfo(object):
     def __init__(self, filename, **kwargs):
         self.filename = filename
         self.title = kwargs.get("title")
-        self.link = kwargs.get("originalUrl")
+        self.link = kwargs.get("originalUrl").replace("~original", "")
         self.mediaType = kwargs.get("mediaType")
         self.likeCount = kwargs.get("likeCount")
         self.commentCount = kwargs.get("commentCount")
@@ -128,7 +128,7 @@ class Photobucket():
         """ Returns the direct link to the passed link. """
         image_link = self._image(source)
         if not image_link:
-            stderr.write("\nFailed to obtain image from {0}!\n".format(link))
+            stderr.write("\rFailed to obtain image from {0}!\n".format(link))
             stderr.flush()
             return
         return image_link
@@ -159,7 +159,7 @@ class Photobucket():
                 stderr.write("Couldn't connect to {0}\n".format(link))
                 stderr.flush()
                 continue
-            stderr.write("\nProcessing: {0}\n".format(link))
+            stderr.write("Processing: {0}\n".format(link))
             stderr.flush()
             try:
                 # Determine which extraction method to use for the current link
@@ -234,14 +234,9 @@ class Photobucket():
                 extraction_type = "Not supported"
         return extraction_type
 
-    def download_image(self, file_info):
-        """ Downloads the image defined inside the passed fileinfo object. """
-        # Skip certain file types when the arguments --images-only or videos-only
-        # has been passed.
-        if(self._args.images_only and file_info.mediaType.lower() == "video"
-           or self._args.videos_only and file_info.mediaType.lower() == "image"):
-            return
-
+    def _get_output_dir(self):
+        """ Returns the output directory, either the pwd or the directory
+            defined in the passed arguments. """
         out = self._args.output_directory
         if not out:
             # Define the present working directory if it wasn't passed explicitly
@@ -271,19 +266,44 @@ class Photobucket():
         # directory itself)
         if not out.endswith(os.sep):
             out += os.sep
+        return out
 
-        # Make sure we don't overwrite any photos with the same name,
-        # we generate an unique filename in the format 'photo(1).jpg',
-        # 'photo(2).jpg' when the file already exists.
-        out = os.path.join(out, file_info.filename)
-        if os.path.isfile(out):
-            out = self._generate_unique_name(out)
+    def download_file(self, file_info):
+        """ Downloads the file defined inside the passed fileinfo object. """
+        # Skip certain file types when the arguments --images-only or videos-only
+        # has been passed.
+        if(self._args.images_only and file_info.mediaType.lower() == "video"
+           or self._args.videos_only and file_info.mediaType.lower() == "image"):
+            return
+
+        out = self._get_output_dir()
+
+        if not self._args.omit_existing:
+            # Make sure we don't overwrite any photos with the same name,
+            # we generate an unique filename in the format 'photo(1).jpg',
+            # 'photo(2).jpg' when the file already exists.
+            out = os.path.join(out, file_info.filename)
+            if os.path.isfile(out):
+                out = self._generate_unique_name(out)
+        else:
+            out += file_info.filename
+            files = [f for f in os.listdir(self._get_output_dir()) if f]
+            if file_info.filename in files:
+                msg = "\rSkipping download for already existing file: {0}\n"
+                stderr.write(msg.format(file_info.filename))
+                stderr.flush()
+                return
 
         # Fetch the url stored inside the fileinfo object and write the fetched
         # data into a file with the filename which is also stored inside the object.
-        with open(out.replace("~original", ""), "wb") as f:
-            req = requests.get(file_info.link, stream=True)
-            if req.status_code != requests.codes.ok:
+        with open(out, "wb") as f:
+            try:
+                req = requests.get(file_info.link, stream=True)
+                if req.status_code != requests.codes.ok:
+                    return
+            except requests.exceptions.RequestException:
+                stderr.write("\rFailed to download {0}\n".format(file_info.link))
+                stderr.flush()
                 return
             for chunk in req.iter_content():
                 if chunk:
@@ -311,11 +331,14 @@ class Photobucket():
         self._log_download_status()
         for file_obj in self.collected_links:
             try:
-                self.download_image(file_obj)
+                self.download_file(file_obj)
             except(KeyboardInterrupt, EOFError):
                 break
             else:
                 self._log_download_status()
+        stderr.write("\r                                             ")
+        stderr.write("\n")
+        self._log_download_status()
         stderr.write("\n")
         stderr.flush()
 
@@ -456,7 +479,7 @@ class Photobucket():
         for obj in images:
             new_link = obj.get("fullsizeUrl")
             up = urlparse(new_link)
-            new_link = "{0}://{1}{2}{3}".format(up.scheme, up.netloc, up.path, "~original")
+            new_link = "{0}~original".format(up.geturl())
             obj["originalUrl"] = new_link
             image_objects.append(ImageInfo(obj["name"], **obj))
 
@@ -603,6 +626,8 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output-directory",
                         help="The directory the extracted images getting saved in.",
                         required=False)
+    parser.add_argument("--omit-existing", action="store_true", required=False)
+    parser.add_argument("-v", "--verbose", required=False)
 
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument("-f", "--file",
@@ -611,8 +636,7 @@ if __name__ == "__main__":
     input_group.add_argument("-u", "--urls",
                              help="One or more links which point to an album or"+\
                                   " image which is hosted on Photobucket.",
-                             nargs="*")
-
+                             nargs="+")
 
     type_group = parser.add_mutually_exclusive_group(required=False)
     type_group.add_argument("--images-only",

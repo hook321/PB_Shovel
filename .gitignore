@@ -37,3 +37,28 @@ nosetests.xml
 
 # Images
 *.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+
+
+# Videos
+*.mp4
+*.mkv
+*.wmv
+*.3gp
+*.amv
+*.asf
+*.asx
+*.divx
+*.dpg
+*.moov
+*.mov
+*.mpg
+*.mpeg
+*.qt
+*.rm
+*.swf
+*.flv
