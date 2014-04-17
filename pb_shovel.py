@@ -254,7 +254,7 @@ class Photobucket():
         if not os.path.isdir(out) and not os.path.isfile(out):
             try:
                 os.makedirs(out)
-            except(OSError):
+            except(OSError, IOError):
                 stderr.write("Failed to create output directory,",\
                              "does it already exist?\n")
                 stderr.flush()
@@ -296,18 +296,24 @@ class Photobucket():
 
         # Fetch the url stored inside the fileinfo object and write the fetched
         # data into a file with the filename which is also stored inside the object.
-        with open(out, "wb") as f:
-            try:
-                req = requests.get(file_info.link, stream=True)
-                if req.status_code != requests.codes.ok:
+        try:
+            with open(out, "wb") as f:
+                try:
+                    req = requests.get(file_info.link, stream=True)
+                    if req.status_code != requests.codes.ok:
+                        return
+                except requests.exceptions.RequestException:
+                    stderr.write("\rFailed to download {0}\n".format(file_info.link))
+                    stderr.flush()
                     return
-            except requests.exceptions.RequestException:
-                stderr.write("\rFailed to download {0}\n".format(file_info.link))
-                stderr.flush()
-                return
-            for chunk in req.iter_content():
-                if chunk:
-                    f.write(chunk)
+                for chunk in req.iter_content():
+                    if chunk:
+                        f.write(chunk)
+        except IOError as e:
+            stderr.write("\nFailed to save the downloaded file ({0})\n".format(e.strerror))
+            stderr.flush()
+            exit(1)
+
         self._downloaded_images += 1
 
     def _generate_unique_name(self, filename):
