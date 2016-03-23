@@ -13,6 +13,7 @@ optional arguments:
                         sources.
   -o OUTPUT_DIRECTORY, --output-directory OUTPUT_DIRECTORY
                         The directory the extracted images getting saved in.
+                        Default: `photobucket/` in current working directory
   --omit-existing
   -v VERBOSE, --verbose VERBOSE
   -f FILE, --file FILE  A file containing one or more Photobucket links which

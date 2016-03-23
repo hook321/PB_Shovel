@@ -241,7 +241,7 @@ class Photobucket():
         if not out:
             # Define the present working directory if it wasn't passed explicitly
             # with the -o/--output-directory argument.
-            out = os.getcwd()
+            out = os.path.join(os.getcwd(), 'photobucket')
         elif out.startswith("~"):
             # Resolve the tilde char (which is the home directory on *nix) to
             # it's actual destination.
