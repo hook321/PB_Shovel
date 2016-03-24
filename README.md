@@ -23,6 +23,7 @@ optional arguments:
                         which is hosted on Photobucket.
   --images-only         Do not download any other filetype besides image.
   --videos-only         Do not download any other filetype besides video.
+  --links-only          Only store the links to the images in a text file: links-<datetime>.txt
 
 Authentication:
   -n USERNAME, --username USERNAME
@@ -32,6 +33,22 @@ Authentication:
                         The matching password for your account.
 
 ```
+
+Recursive Album Downloads
+=========================
+
+If you're an archivist, you would obviously want to download all nested folders in the current
+album. This script supports this feature: just add `-r` to download these nested folders. Done.
+
+Extracting URLs
+===============
+
+The `--links-only` parameter can be used to store all the image URLs in a text file:
+
+`links-<datetime>.txt`
+
+This file can then be passed into `wget`, `wpull`, or `grab-site` to archive the 
+images to a sane directory structure, or to to WARC format.
 
 Guest password
 =====================

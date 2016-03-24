@@ -2,6 +2,7 @@ import os
 import re
 import json
 import argparse
+from datetime import datetime
 from sys import stderr
 from urlparse import urljoin, urlparse
 from bs4 import BeautifulSoup
@@ -25,6 +26,9 @@ import requests
 #           website, he has lots of interessting projects going on, http://9v.lt/blog/
 #
 #
+
+# Name of the file that contains the links scraped in a session:
+LINKS_FNAME = 'links-' + datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + '.txt'
 
 class ImageInfo(object):
     """ Stores image information, contains the direct link to the image and
@@ -236,7 +240,9 @@ class Photobucket():
 
     def _get_output_dir(self):
         """ Returns the output directory, either the pwd or the directory
-            defined in the passed arguments. """
+            defined in the passed arguments.
+            Subalbums are given a subdirectory to store their images in.
+        """
         out = self._args.output_directory
         if not out:
             # Define the present working directory if it wasn't passed explicitly
@@ -274,6 +280,13 @@ class Photobucket():
         # has been passed.
         if(self._args.images_only and file_info.mediaType.lower() == "video"
            or self._args.videos_only and file_info.mediaType.lower() == "image"):
+            return
+
+        # Write url to a file if the --links-only parameter was passed.
+        if(self._args.links_only):
+            print(file_info.link)
+            with open(os.path.join(os.getcwd(), LINKS_FNAME), 'a+') as f:
+                f.write(file_info.link + '\n')
             return
 
         out = self._get_output_dir()
@@ -341,12 +354,22 @@ class Photobucket():
             except(KeyboardInterrupt, EOFError):
                 break
             else:
-                self._log_download_status()
-        stderr.write("\r                                             ")
-        stderr.write("\n")
-        self._log_download_status()
-        stderr.write("\n")
-        stderr.flush()
+                if (not self._args.links_only): # don't display progress bar for just urls
+                    self._log_download_status
+                
+        if (not self._args.links_only): # don't display progress bar for just urls
+            stderr.write("\r                                             ")
+            stderr.write("\n")
+            self._log_download_status()
+            stderr.write("\n")
+            stderr.flush()
+
+    def display_image_urls(self):
+        for file_obj in self.collected_links:
+            try:
+                print(file_obj.link)
+            except(KeyboardInterrupt, EOFError):
+                break
 
     def _log_download_status(self):
         """ Prints the number of downloaded images and the total of images collected
@@ -650,6 +673,9 @@ if __name__ == "__main__":
                         action="store_true")
     type_group.add_argument("--videos-only",
                         help="Do not download any other filetype besides video.",
+                        action="store_true")
+    type_group.add_argument("--links-only",
+                        help="Only store the links to the images in a text file: links-<datetime>.txt.",
                         action="store_true")
 
     auth_grp = parser.add_argument_group("Authentication")
