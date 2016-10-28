@@ -4,15 +4,14 @@ Example
 Download a single image to the default `./photobucket/` directory:
 
 ```
-python pb_shovel.py 'http://s160.photobucket.com/user/Spinningfox/media/Internet Fads/b217a64d.gif.html'
+python pb_shovel.py -u 'http://s160.photobucket.com/user/Spinningfox/media/Internet Fads/b217a64d.gif.html'
 ```
 
 Obtain all the urls of a Photobucket Album, even subalbums, and put them in `links-<datetime>.txt`. This url file can be given to `wget` (just download all images) or [grab-site](https://github.com/ludios/grab-site) (archive all links as WARC).
 
 ```
-python pb_shovel.py 'http://s160.photobucket.com/user/Spinningfox/library/Internet Fads' -r --links-only
-wget -i links-2016-03-20_02-03-01.txt
-grab-site -i links-2016-03-20_02-03-01.txt
+python pb_shovel.py -u 'http://s160.photobucket.com/user/Spinningfox/library/Internet Fads' -r --links-only
+wget -i links-2016-03-20_02-03-01.txt # or you can use curl
 ```
 
 Usage
